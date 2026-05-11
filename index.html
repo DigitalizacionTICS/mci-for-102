@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>MCI-FOR-102 – Alerta de Calidad</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+  :root {
+    --red: #D0021B;
+    --green: #1A7F37;
+    --dark: #1a1a1a;
+    --mid: #444;
+    --light: #f4f4f4;
+    --border: #bbb;
+    --accent: #005fcc;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    color: var(--dark);
+    background: #e8e8e8;
+  }
+
+  /* ── TOOLBAR (no imprime) ── */
+  #toolbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+    background: var(--dark);
+    color: #fff;
+    padding: 10px 24px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px;
+  }
+  #toolbar span { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 14px; color: #fff; flex: 1; }
+  #toolbar button {
+    background: var(--accent); color: #fff; border: none;
+    padding: 7px 20px; border-radius: 4px; cursor: pointer;
+    font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 600;
+  }
+  #toolbar button:hover { background: #0047a3; }
+
+  /* ── PÁGINA ── */
+  #page {
+    margin: 60px auto 40px;
+    width: 210mm;
+    background: #fff;
+    box-shadow: 0 4px 24px rgba(0,0,0,.18);
+    padding: 12mm 12mm 10mm;
+  }
+
+  /* ── HEADER ── */
+  .doc-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    border: 2px solid var(--dark);
+    margin-bottom: 0;
+  }
+  .doc-header-title {
+    padding: 8px 12px;
+    border-right: 2px solid var(--dark);
+  }
+  .doc-header-title h1 { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+  .doc-header-title p { font-size: 10px; color: var(--mid); margin-top: 2px; }
+  .doc-header-meta { padding: 8px 14px; text-align: right; font-family: 'IBM Plex Mono', monospace; }
+  .doc-header-meta .doc-id { font-size: 14px; font-weight: 700; }
+  .doc-header-meta .doc-ver { font-size: 10px; color: var(--mid); }
+
+  /* ── SECTION ── */
+  .section {
+    border: 1.5px solid var(--dark);
+    border-top: none;
+  }
+  .section-title {
+    background: var(--dark); color: #fff;
+    padding: 4px 10px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  }
+  .section-body { padding: 8px 10px; }
+
+  /* ── GRID ROWS ── */
+  .row { display: flex; gap: 0; }
+  .row + .row { border-top: 1px solid #ddd; }
+
+  .field {
+    flex: 1;
+    padding: 5px 8px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .field + .field { border-left: 1px solid #ddd; }
+  .field label {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    color: var(--mid); letter-spacing: .5px;
+  }
+  .field input, .field textarea, .field select {
+    border: none; border-bottom: 1px solid #ccc;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 11px; color: var(--dark);
+    background: transparent; outline: none; width: 100%;
+    padding: 2px 0;
+    resize: vertical;
+  }
+  .field textarea { min-height: 48px; }
+  .field input[type="date"] { font-size: 10px; }
+
+  /* ── CHECKLIST ── */
+  .checklist { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+  .checklist label { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 400; text-transform: none; color: var(--dark); cursor: pointer; }
+  .checklist input[type="checkbox"] { width: 13px; height: 13px; cursor: pointer; accent-color: var(--dark); }
+
+  /* ── NOK / OK SPLIT ── */
+  .nok-ok-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1.5px solid var(--dark);
+    border-top: none;
+  }
+  .nok-box, .ok-box {
+    padding: 6px 10px;
+  }
+  .nok-box { border-right: 1.5px solid var(--dark); }
+  .nok-label { font-size: 12px; font-weight: 700; color: var(--red); margin-bottom: 6px; }
+  .ok-label  { font-size: 12px; font-weight: 700; color: var(--green); margin-bottom: 6px; }
+
+  /* ── UPLOAD AREA ── */
+  .upload-area {
+    border: 2px dashed #ccc; border-radius: 4px;
+    padding: 8px; text-align: center;
+    cursor: pointer; transition: border-color .2s;
+    font-size: 10px; color: #888;
+    margin-bottom: 6px;
+  }
+  .upload-area:hover { border-color: var(--accent); color: var(--accent); }
+  .upload-area input { display: none; }
+
+  /* ── PHOTO GRID ── */
+  .photo-grid {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;
+  }
+  .photo-item {
+    position: relative; width: 80px; height: 80px;
+  }
+  .photo-item img {
+    width: 100%; height: 100%; object-fit: cover;
+    border-radius: 3px; border: 1px solid #ddd;
+  }
+  .photo-item .remove-btn {
+    position: absolute; top: -5px; right: -5px;
+    background: var(--red); color: #fff; border: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    font-size: 10px; cursor: pointer; line-height: 16px; text-align: center;
+    font-weight: 700;
+  }
+
+  /* ── TABLE ── */
+  table {
+    width: 100%; border-collapse: collapse; font-size: 10px;
+  }
+  table th {
+    background: var(--light); font-weight: 700;
+    padding: 4px 6px; border: 1px solid #bbb;
+    text-align: left;
+  }
+  table td {
+    border: 1px solid #ddd; padding: 3px 6px;
+  }
+  table td input {
+    border: none; font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 10px; width: 100%; outline: none; background: transparent;
+  }
+  table .add-row-btn {
+    background: none; border: 1px dashed #aaa; color: var(--accent);
+    font-size: 10px; cursor: pointer; padding: 3px 10px; margin-top: 4px;
+    border-radius: 3px; width: 100%;
+  }
+  table .add-row-btn:hover { background: #f0f6ff; }
+
+  .del-row { background: none; border: none; cursor: pointer; color: #ccc; font-size: 12px; }
+  .del-row:hover { color: var(--red); }
+
+  /* ── PRINT ── */
+  @media print {
+    body { background: #fff; }
+    #toolbar { display: none !important; }
+    #page {
+      margin: 0; padding: 8mm 8mm 8mm;
+      box-shadow: none;
+      width: 100%;
+    }
+    .upload-area { display: none !important; }
+    .remove-btn  { display: none !important; }
+    .add-row-btn { display: none !important; }
+    .del-row     { display: none !important; }
+    input, textarea, select {
+      border-bottom: 1px solid #ccc !important;
+    }
+    .photo-item { width: 72px; height: 72px; }
+    @page { size: A4; margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <span>MCI-FOR-102 · Alerta de Calidad</span>
+  <button onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+</div>
+
+<!-- FORM PAGE -->
+<div id="page">
+
+  <!-- HEADER -->
+  <div class="doc-header">
+    <div class="doc-header-title">
+      <h1>Alerta de Calidad</h1>
+      <p>Formato de notificación y seguimiento de problemas</p>
+    </div>
+    <div class="doc-header-meta">
+      <div class="doc-id">MCI-FOR-102</div>
+      <div class="doc-ver">Rev. 1</div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN: DATOS -->
+  <div class="section">
+    <div class="section-title">Datos</div>
+    <div class="section-body">
+
+      <div class="row">
+        <div class="field" style="max-width:160px">
+          <label>Fecha de solicitud</label>
+          <input type="date" id="fecha_solicitud">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Área donde se detecta</label>
+          <input type="text" id="area_detecta" placeholder="Área…">
+        </div>
+        <div class="field">
+          <label>Nombre del proyecto</label>
+          <input type="text" id="nombre_proyecto" placeholder="Proyecto…">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:3">
+          <label>Pieza / Producto</label>
+          <input type="text" id="pieza_producto" placeholder="Descripción de pieza o producto…">
+        </div>
+        <div class="field" style="flex:1">
+          <label>Tipo de problema</label>
+          <div class="checklist">
+            <label><input type="checkbox" id="chk_interno"> Problema INTERNO</label>
+            <label><input type="checkbox" id="chk_externo"> Problema EXTERNO</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:2">
+          <label>Maquinaria utilizada</label>
+          <textarea id="maquinaria" placeholder="Listado de maquinaria…"></textarea>
+        </div>
+        <div class="field" style="flex:1">
+          <label>Cliente interno / externo</label>
+          <input type="text" id="cliente" placeholder="Cliente…">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Se anexan fotos</label>
+          <input type="text" id="anexan_fotos" placeholder="Sí / No / Cantidad…">
+        </div>
+        <div class="field">
+          <label>No. Documento relacionado</label>
+          <input type="text" id="no_documento" placeholder="Número de documento…">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field" style="flex:3">
+          <label>Emite</label>
+          <input type="text" id="emite" placeholder="Nombre de quien emite…">
+        </div>
+        <div class="field" style="flex:1">
+          <label>Fecha</label>
+          <input type="date" id="fecha_emite">
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SECCIÓN: DESCRIPCIÓN -->
+  <div class="section">
+    <div class="section-title">Descripción del problema</div>
+    <div class="section-body">
+      <div class="field" style="padding:0">
+        <textarea id="descripcion_problema" style="min-height:64px" placeholder="Describe detalladamente el problema detectado…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOK / OK CON FOTOS -->
+  <div class="nok-ok-wrapper">
+
+    <!-- NOK -->
+    <div class="nok-box">
+      <div class="nok-label">NOK — Evidencia del problema</div>
+      <label class="upload-area" for="upload_nok">
+        <input type="file" id="upload_nok" accept="image/*" multiple onchange="addPhotos('nok', this)">
+        ＋ Agregar fotos NOK
+      </label>
+      <div class="photo-grid" id="grid_nok"></div>
+    </div>
+
+    <!-- OK -->
+    <div class="ok-box">
+      <div class="ok-label">OK — Condición correcta</div>
+      <label class="upload-area" for="upload_ok">
+        <input type="file" id="upload_ok" accept="image/*" multiple onchange="addPhotos('ok', this)">
+        ＋ Agregar fotos OK
+      </label>
+      <div class="photo-grid" id="grid_ok"></div>
+    </div>
+
+  </div>
+
+  <!-- SECCIÓN: CONTRA MEDIDAS -->
+  <div class="section">
+    <div class="section-title">Describir partes OK / Contra medidas / Fotos anexas</div>
+    <div class="section-body">
+      <div class="field" style="padding:0">
+        <textarea id="describir_partes" style="min-height:64px" placeholder="Describe las contramedidas tomadas…"></textarea>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <div class="field">
+          <label>Responsable</label>
+          <input type="text" id="responsable" placeholder="Nombre del responsable…">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN: EQUIPO INVOLUCRADO -->
+  <div class="section">
+    <div class="section-title">Equipo involucrado al problema</div>
+    <div class="section-body" style="padding:6px 10px">
+      <table id="tabla_equipo">
+        <thead>
+          <tr>
+            <th style="width:100px">Fecha</th>
+            <th>Puesto</th>
+            <th>Nombre</th>
+            <th style="width:24px"></th>
+          </tr>
+        </thead>
+        <tbody id="body_equipo"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addRow('equipo')">+ Agregar fila</button>
+    </div>
+  </div>
+
+  <!-- SECCIÓN: ACCIONES RETIRO ALERTA -->
+  <div class="section">
+    <div class="section-title">Acciones tomadas para el retiro de alerta de Calidad</div>
+    <div class="section-body" style="padding:6px 10px">
+      <table id="tabla_acciones">
+        <thead>
+          <tr>
+            <th>Descripción</th>
+            <th style="width:90px">Fecha</th>
+            <th>Responsable</th>
+            <th style="width:80px">Concluida</th>
+            <th style="width:24px"></th>
+          </tr>
+        </thead>
+        <tbody id="body_acciones"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addRow('acciones')">+ Agregar fila</button>
+    </div>
+  </div>
+
+  <!-- SECCIÓN: RETIRO DE ALERTA -->
+  <div class="section">
+    <div class="section-title">Retiro de alerta</div>
+    <div class="section-body">
+      <div class="row">
+        <div class="field" style="max-width:160px">
+          <label>Fecha (retiro de alerta)</label>
+          <input type="date" id="fecha_retiro">
+        </div>
+        <div class="field">
+          <label>Nombre</label>
+          <input type="text" id="nombre_retiro" placeholder="Nombre de quien retira la alerta…">
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+  // Auto fecha solicitud
+  document.getElementById('fecha_solicitud').valueAsDate = new Date();
+
+  // ── FOTOS ──
+  function addPhotos(tipo, input) {
+    const grid = document.getElementById('grid_' + tipo);
+    const files = Array.from(input.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const item = document.createElement('div');
+        item.className = 'photo-item';
+        item.innerHTML = `
+          <img src="${e.target.result}" alt="foto">
+          <button class="remove-btn" onclick="this.parentElement.remove()">✕</button>
+        `;
+        grid.appendChild(item);
+      };
+      reader.readAsDataURL(file);
+    });
+    input.value = '';
+  }
+
+  // ── TABLAS DINÁMICAS ──
+  function addRow(tipo) {
+    if (tipo === 'equipo') {
+      const tbody = document.getElementById('body_equipo');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="date"></td>
+        <td><input type="text" placeholder="Puesto…"></td>
+        <td><input type="text" placeholder="Nombre…"></td>
+        <td><button class="del-row" onclick="this.closest('tr').remove()">✕</button></td>
+      `;
+      tbody.appendChild(tr);
+    } else {
+      const tbody = document.getElementById('body_acciones');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" placeholder="Descripción…"></td>
+        <td><input type="date"></td>
+        <td><input type="text" placeholder="Responsable…"></td>
+        <td><input type="text" placeholder="Sí / No"></td>
+        <td><button class="del-row" onclick="this.closest('tr').remove()">✕</button></td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  // Filas iniciales
+  for (let i = 0; i < 3; i++) addRow('equipo');
+  for (let i = 0; i < 3; i++) addRow('acciones');
+</script>
+</body>
+</html>
